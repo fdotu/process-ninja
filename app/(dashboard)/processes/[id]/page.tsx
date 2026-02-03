@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -105,9 +105,9 @@ const statusConfig: Record<string, { icon: React.ElementType; color: string; bg:
 export default function ProcessDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const { data: session } = useSession();
   const [process, setProcess] = useState<Process | null>(null);

@@ -12,7 +12,7 @@ const actionSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; stepId: string }> }
+  { params }: { params: { id: string; stepId: string } }
 ) {
   try {
     const session = await auth();
@@ -25,7 +25,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id: processId, stepId } = await params;
+    const { id: processId, stepId } = params;
     const body = await request.json();
     const result = actionSchema.safeParse(body);
 
