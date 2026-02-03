@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+
+  processesCreated  ProcessInstance[]
+  processStepsActed ProcessStepInstance[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+}
+
+enum UserRole {
+  ADMIN
+  APPROVER
+  USER
+}
+
+model WorkflowTemplate {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  status      WorkflowStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  steps      WorkflowStep[]
+  formSchema FormSchema?
+  processes  ProcessInstance[]
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model WorkflowStep {
+  id                 String   @id @default(cuid())
+  workflowTemplateId String
+  stepOrder          Int
+  stepType           StepType
+  name               String
+  config             Json     @default("{}")
+  createdAt          DateTime @default(now())
+
+  workflowTemplate WorkflowTemplate      @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+  processSteps     ProcessStepInstance[]
+}
+
+enum StepType {
+  FORM
+  APPROVAL
+  NOTIFICATION
+}
+
+model FormSchema {
+  id                 String   @id @default(cuid())
+  workflowTemplateId String   @unique
+  fields             Json     @default("[]")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workflowTemplate WorkflowTemplate @relation(fields: [workflowTemplateId], references: [id], onDelete: Cascade)
+}
+
+model ProcessInstance {
+  id                 String        @id @default(cuid())
+  workflowTemplateId String
+  status             ProcessStatus @default(PENDING)
+  formData           Json          @default("{}")
+  createdById        String
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  workflowTemplate WorkflowTemplate      @relation(fields: [workflowTemplateId], references: [id])
+  createdBy        User                  @relation(fields: [createdById], references: [id])
+  steps            ProcessStepInstance[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+}
+
+enum ProcessStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  COMPLETED
+  CHANGES_REQUESTED
+}
+
+model ProcessStepInstance {
+  id                String     @id @default(cuid())
+  processInstanceId String
+  workflowStepId    String
+  status            StepStatus @default(PENDING)
+  actedById         String?
+  actedAt           DateTime?
+  comments          String?
+  createdAt         DateTime   @default(now())
+
+  processInstance ProcessInstance @relation(fields: [processInstanceId], references: [id], onDelete: Cascade)
+  workflowStep    WorkflowStep    @relation(fields: [workflowStepId], references: [id])
+  actedBy         User?           @relation(fields: [actedById], references: [id])
+}
+
+enum StepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  SKIPPED
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  processInstanceId String?
+  action            String
+  changedById       String
+  changedAt         DateTime @default(now())
+  previousValue     Json?
+  newValue          Json?
+  notes             String?
+
+  processInstance ProcessInstance? @relation(fields: [processInstanceId], references: [id])
+  changedBy       User             @relation(fields: [changedById], references: [id])
+}
+
+model Notification {
+  id                String           @id @default(cuid())
+  userId            String
+  processInstanceId String?
+  message           String
+  type              NotificationType @default(INFO)
+  isRead            Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+
+  user            User             @relation(fields: [userId], references: [id])
+  processInstance ProcessInstance? @relation(fields: [processInstanceId], references: [id])
+}
+
+enum NotificationType {
+  INFO
+  ACTION_REQUIRED
+  UPDATE
+}
